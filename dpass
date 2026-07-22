@@ -12,7 +12,8 @@
 set -euo pipefail
 
 SCRIPT_PATH="$(readlink -f -- "${BASH_SOURCE[0]}")"
-WORDLIST="$HOME/dicepass.txt" # change this to point at your own wordlist
+# Defaults to $HOME/dicepass.txt; export DPASS_WORDLIST (e.g. in ~/.bashrc) to override.
+WORDLIST="${DPASS_WORDLIST:-$HOME/dicepass.txt}"
 
 usage() {
   echo "Usage: dpass <ARG1> <ARG2> ... <ARG-N>" >&2

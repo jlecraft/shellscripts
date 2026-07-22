@@ -25,7 +25,8 @@
 
 set -euo pipefail
 
-NOTES_DIR="$HOME" # change this to store notes wherever you'd like
+# Defaults to $HOME; export NOTES_DIR (e.g. in ~/.bashrc) to override.
+NOTES_DIR="${NOTES_DIR:-$HOME}"
 mkdir -p "$NOTES_DIR"
 
 new_file=false

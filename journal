@@ -18,7 +18,8 @@
 
 set -euo pipefail
 
-JOURNAL_DIR="$HOME" # change this to store journal entries wherever you'd like
+# Defaults to $HOME; export JOURNAL_DIR (e.g. in ~/.bashrc) to override.
+JOURNAL_DIR="${JOURNAL_DIR:-$HOME}"
 mkdir -p "$JOURNAL_DIR"
 
 text=""

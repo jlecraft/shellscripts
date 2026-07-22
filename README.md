@@ -4,19 +4,29 @@ A collection of small, dependency-free bash scripts.
 
 ## Installation
 
-Copy or symlink whichever script(s) you want into a directory on your
-`$PATH` (e.g. `~/.local/bin`) and make sure it's executable:
+Symlink whichever script(s) you want into a directory on your `$PATH`
+(e.g. `~/.local/bin`), so this repo stays the single source of truth:
 
 ```
 ln -s "$(pwd)/note" ~/.local/bin/note
 ```
 
+`note`, `journal`, and `dpass` default to storing their data directly
+under `$HOME`, so they work out of the box on any machine. To use
+different directories on a given machine (without editing the scripts),
+export the corresponding variable — e.g. in `~/.bashrc`:
+
+```
+export NOTES_DIR="$HOME/Documents/raven"
+export JOURNAL_DIR="$HOME/Documents/raven/journal"
+export DPASS_WORDLIST="$HOME/Documents/dicepass.txt"
+```
+
 ## note
 
 Quick numbered note-taking. Notes are stored as `note-NNNNNN.md` in
-`NOTES_DIR` (defaults to `$HOME`; edit the `NOTES_DIR` line near the top
-of the script to store them wherever you like), with an ever-increasing
-counter that never resets.
+`NOTES_DIR` (defaults to `$HOME`; export `NOTES_DIR` to override, see
+Installation above), with an ever-increasing counter that never resets.
 
 ```
 note                  Open latest note (or create one) in $EDITOR
@@ -36,9 +46,8 @@ note -h | --help      Show this help
 ## journal
 
 Daily journal entries, one file per day, stored as
-`journal-YYYY-MM-DD.md` in `JOURNAL_DIR` (defaults to `$HOME`; edit the
-`JOURNAL_DIR` line near the top of the script to store them wherever
-you like).
+`journal-YYYY-MM-DD.md` in `JOURNAL_DIR` (defaults to `$HOME`; export
+`JOURNAL_DIR` to override, see Installation above).
 
 ```
 journal                Open today's journal entry (or create one) in $EDITOR
@@ -51,11 +60,11 @@ journal -h | --help    Show this help
 ## dpass
 
 Diceware passphrase generator. Looks up dice-roll keys in a wordlist
-(`$HOME/dicepass.txt` by default — edit `WORDLIST` in the script to point
-at your own list) and prints the matching words joined by hyphens.
+(`$HOME/dicepass.txt` by default; export `DPASS_WORDLIST` to override,
+see Installation above) and prints the matching words joined by hyphens.
 
-Grab the standard EFF diceware wordlist and save it as `~/dicepass.txt`
-(or wherever you pointed `WORDLIST`):
+Grab the standard EFF diceware wordlist and save it wherever
+`DPASS_WORDLIST` points:
 
 ```
 curl -o ~/dicepass.txt https://www.eff.org/files/2016/07/18/eff_large_wordlist.txt
