@@ -76,7 +76,7 @@ dpass -r [N=1]                    Generate N random dice-roll words
 dpass -R [N=1]                    Same as -r, plus print the numeric keys
 ```
 
-## rename_sanitize.sh
+## rename_sanitize
 
 Renames files in a directory so that `ls` and other shell commands never
 need to quote them. It does this by:
@@ -95,7 +95,7 @@ subdirectories are not descended into.
 ### Usage
 
 ```
-rename_sanitize.sh [-n] [--space-char CHAR] [directory]
+rename_sanitize [-n] [--space-char CHAR] [directory]
 ```
 
 - `-n` — dry run: print `old -> new` for every planned rename without
@@ -109,25 +109,25 @@ rename_sanitize.sh [-n] [--space-char CHAR] [directory]
 Preview changes in the current directory:
 
 ```
-./rename_sanitize.sh -n
+./rename_sanitize -n
 ```
 
 Rename files in `~/Music/remix`, using `_` as the separator:
 
 ```
-./rename_sanitize.sh ~/Music/remix
+./rename_sanitize ~/Music/remix
 ```
 
 Use `-` instead of `_` as the separator:
 
 ```
-./rename_sanitize.sh --space-char '-' ~/Music/remix
+./rename_sanitize --space-char '-' ~/Music/remix
 ```
 
 Use `.` instead of `_` as the separator:
 
 ```
-./rename_sanitize.sh --space-char '.' ~/Music/remix
+./rename_sanitize --space-char '.' ~/Music/remix
 ```
 
 ### Example transformation
