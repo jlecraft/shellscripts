@@ -19,13 +19,13 @@
 # All words after the recognized flags are joined with spaces and
 # saved as the note text, so quoting is optional (but still fine).
 #
-# Files are stored in ~/Documents as: note-NNNNNN.md, numbered with a
-# single ever-increasing counter (never reset). If no note files exist
-# yet, one is created automatically even without -n.
+# Files are stored in NOTES_DIR (see below) as: note-NNNNNN.md, numbered
+# with a single ever-increasing counter (never reset). If no note files
+# exist yet, one is created automatically even without -n.
 
 set -euo pipefail
 
-NOTES_DIR="$HOME/Documents/raven"
+NOTES_DIR="$HOME" # change this to store notes wherever you'd like
 mkdir -p "$NOTES_DIR"
 
 new_file=false

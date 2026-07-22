@@ -5,10 +5,14 @@
 #
 # Looks up each key in dicepass.txt and prints the matching words
 # joined by hyphens.
+#
+# WORDLIST expects a diceware-format file: 5-digit key, tab, word, one
+# per line (keys 11111-66666). Get the standard EFF list from:
+#   https://www.eff.org/files/2016/07/18/eff_large_wordlist.txt
 set -euo pipefail
 
 SCRIPT_PATH="$(readlink -f -- "${BASH_SOURCE[0]}")"
-WORDLIST="/home/crafty/Documents/dicepass.txt"
+WORDLIST="$HOME/dicepass.txt" # change this to point at your own wordlist
 
 usage() {
   echo "Usage: dpass <ARG1> <ARG2> ... <ARG-N>" >&2

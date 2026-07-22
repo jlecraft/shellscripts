@@ -12,13 +12,13 @@
 # All words after the recognized flags are joined with spaces and
 # saved as the entry text, so quoting is optional (but still fine).
 #
-# Files are stored in ~/Documents/raven/journal as: journal-YYYY-MM-DD.md,
+# Files are stored in JOURNAL_DIR (see below) as: journal-YYYY-MM-DD.md,
 # one file per day. If today's file already exists, new entries are
 # appended to it; otherwise it is created automatically.
 
 set -euo pipefail
 
-JOURNAL_DIR="$HOME/Documents/raven/journal"
+JOURNAL_DIR="$HOME" # change this to store journal entries wherever you'd like
 mkdir -p "$JOURNAL_DIR"
 
 text=""
