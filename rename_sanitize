@@ -1,10 +1,12 @@
 #!/usr/bin/env bash
 # Rename files so `ls` never needs to quote them: spaces become a separator
 # character (default `_`, override with --space-char), any other non-portable
-# character is dropped, and repeated separator characters collapse to one.
+# character is dropped, and any run of separator-like characters (the
+# separator itself, `.`, `_`, `-`) collapses to a single separator character.
 #
 # Usage: rename_sanitize.sh [-n] [--space-char CHAR] [directory]
 set -euo pipefail
+shopt -s extglob
 
 dry_run=false
 space_char="_"
@@ -42,19 +44,36 @@ if [[ ${#space_char} -ne 1 ]]; then
   exit 1
 fi
 
+# Sanitize one filename component (stem or extension) in isolation, so the
+# run-collapsing step below can never reach across into the other component.
+sanitize_part() {
+  local part="$1"
+  part="${part// /$space_char}"
+  part="${part//[^${space_char}A-Za-z0-9._-]/}"
+  part="${part//[$space_char._-]+([$space_char._-])/$space_char}"
+  part="${part#"$space_char"}"
+  part="${part%"$space_char"}"
+  printf '%s' "$part"
+}
+
 dir="${1:-.}"
 
 for f in "$dir"/*; do
   [[ -f "$f" ]] || continue
   base=$(basename -- "$f")
 
-  new="${base// /$space_char}"
-  new="${new//[^${space_char}A-Za-z0-9._-]/}"
-  while [[ "$new" == *"$space_char$space_char"* ]]; do
-    new="${new//$space_char$space_char/$space_char}"
-  done
-  new="${new#"$space_char"}"
-  new="${new%"$space_char"}"
+  base_stem="${base%.*}"
+  base_ext="${base##*.}"
+  [[ "$base_stem" == "$base_ext" ]] && base_ext=""
+
+  new="$(sanitize_part "$base_stem")"
+  if [[ -n "$base_ext" ]]; then
+    new_ext="$(sanitize_part "$base_ext")"
+    if [[ -n "$new_ext" ]]; then
+      new="${new%.}"
+      new="${new}.${new_ext}"
+    fi
+  fi
 
   [[ -z "$new" || "$new" == "$base" ]] && continue
 

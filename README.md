@@ -84,10 +84,14 @@ need to quote them. It does this by:
 1. Replacing spaces with a separator character (default `_`).
 2. Removing any other character that isn't a letter, digit, `.`, `_`, or `-`
    (the POSIX "portable filename character set").
-3. Collapsing repeated separator characters into one.
+3. Collapsing any run of separator-like characters (the separator itself,
+   `.`, `_`, `-`) into a single separator character, e.g. `_-_` -> `_`.
 4. Trimming a leading/trailing separator character, if left over.
 5. Avoiding overwrites: if the sanitized name already exists, a numeric
    suffix (`_1`, `_2`, ...) is appended before the extension.
+
+Steps 1-4 are applied to the filename's stem and extension separately, so
+the extension is never absorbed into a collapsed run or otherwise lost.
 
 Only regular files directly inside the target directory are renamed;
 subdirectories are not descended into.
@@ -135,4 +139,7 @@ Use `.` instead of `_` as the separator:
 ```
 Austin (Boots Stop Workin') (Distant Matter Remix).mp3
   -> Austin_Boots_Stop_Workin_Distant_Matter_Remix.mp3
+
+trailing--.mp3
+  -> trailing.mp3
 ```
