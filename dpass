@@ -1,0 +1,82 @@
+#!/usr/bin/env bash
+# dpass <ARG1> <ARG2> ... <ARG-N>
+# dpass -r [N=1]   generate N random dice-roll words
+# dpass -R [N=1]   same as -r, plus print the numeric keys on a line above
+#
+# Looks up each key in dicepass.txt and prints the matching words
+# joined by hyphens.
+set -euo pipefail
+
+SCRIPT_PATH="$(readlink -f -- "${BASH_SOURCE[0]}")"
+WORDLIST="/home/crafty/Documents/dicepass.txt"
+
+usage() {
+  echo "Usage: dpass <ARG1> <ARG2> ... <ARG-N>" >&2
+  echo "       dpass -r [N=1]   generate N random words" >&2
+  echo "       dpass -R [N=1]   generate N random words, show dice keys too" >&2
+  exit 1
+}
+
+if [[ ! -f "$WORDLIST" ]]; then
+  echo "Error: wordlist not found at $WORDLIST" >&2
+  exit 1
+fi
+
+random_mode=0
+show_numbers=0
+n=1
+keys=()
+
+if [[ $# -eq 0 ]]; then
+  usage
+fi
+
+while [[ $# -gt 0 ]]; do
+  case "$1" in
+    -r|-R)
+      random_mode=1
+      [[ "$1" == "-R" ]] && show_numbers=1
+      shift
+      if [[ $# -gt 0 && "$1" =~ ^[0-9]+$ ]]; then
+        n="$1"
+        shift
+      fi
+      ;;
+    -*)
+      echo "Unknown option: $1" >&2
+      usage
+      ;;
+    *)
+      keys+=("$1")
+      shift
+      ;;
+  esac
+done
+
+if [[ $random_mode -eq 1 ]]; then
+  keys=()
+  for ((i = 0; i < n; i++)); do
+    key=""
+    for ((j = 0; j < 5; j++)); do
+      key+="$(( RANDOM % 6 + 1 ))"
+    done
+    keys+=("$key")
+  done
+elif [[ ${#keys[@]} -eq 0 ]]; then
+  usage
+fi
+
+words=()
+for key in "${keys[@]}"; do
+  word=$(awk -v k="$key" -F'\t' '$1 == k { gsub(/\r$/, "", $2); print $2; exit }' "$WORDLIST")
+  if [[ -z "$word" ]]; then
+    echo "Error: no match found for '$key'" >&2
+    exit 1
+  fi
+  words+=("$word")
+done
+
+if [[ $show_numbers -eq 1 ]]; then
+  (IFS='-'; echo "${keys[*]}")
+fi
+(IFS='-'; echo "${words[*]}")

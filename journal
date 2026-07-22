@@ -1,0 +1,152 @@
+#!/bin/bash
+#
+# journal - quick daily journal script
+#
+# Usage:
+#   journal                Open today's journal entry (or create one) in $EDITOR
+#   journal some text      Append "HH:MM: some text" to today's journal entry
+#   journal -- -text       Use -- to write text that itself starts with "-"
+#   journal -s PATTERN     Search all journal files for lines matching PATTERN (case-insensitive)
+#   journal -h | --help    Show this help
+#
+# All words after the recognized flags are joined with spaces and
+# saved as the entry text, so quoting is optional (but still fine).
+#
+# Files are stored in ~/Documents/raven/journal as: journal-YYYY-MM-DD.md,
+# one file per day. If today's file already exists, new entries are
+# appended to it; otherwise it is created automatically.
+
+set -euo pipefail
+
+JOURNAL_DIR="$HOME/Documents/raven/journal"
+mkdir -p "$JOURNAL_DIR"
+
+text=""
+
+show_help() {
+    cat <<EOF
+journal - quick daily journal script
+
+Usage:
+  journal                Open today's journal entry (or create one) in \$EDITOR
+  journal some text      Append "HH:MM: some text" to today's journal entry
+  journal -- -text       Use -- to write text that itself starts with "-"
+  journal -s PATTERN     Search all journal files for lines matching PATTERN (case-insensitive)
+  journal -h | --help    Show this help
+
+All words after the recognized flags are joined with spaces and saved
+as the entry text, so quoting is optional (but still fine).
+
+Entries are stored as: JOURNAL_DIR/journal-YYYY-MM-DD.md, one file per
+day. If today's file already exists, new entries are appended to it;
+otherwise it is created automatically.
+
+Current configuration:
+  Journal directory : $JOURNAL_DIR
+  Editor (\$EDITOR)  : ${EDITOR:-nano (default)}
+  Today's date      : $(date +%Y-%m-%d)
+EOF
+
+    local today_file
+    today_file="$JOURNAL_DIR/journal-$(date +%Y-%m-%d).md"
+    if [ -f "$today_file" ]; then
+        echo "  Today's file      : $today_file"
+    else
+        echo "  Today's file      : (none yet)"
+    fi
+}
+
+show_search() {
+    local pattern="$1"
+    local -a files
+    mapfile -t files < <(find "$JOURNAL_DIR" -maxdepth 1 -type f -name 'journal-*.md' -printf '%f\n' 2>/dev/null | sort)
+    if [ "${#files[@]}" -eq 0 ]; then
+        echo "journal: no journal files found in $JOURNAL_DIR" >&2
+        exit 1
+    fi
+
+    # Run from within JOURNAL_DIR so grep -H prints bare filenames instead
+    # of the full path.
+    local matches
+    matches=$(cd "$JOURNAL_DIR" && grep -Hni -- "$pattern" "${files[@]}" 2>/dev/null || true)
+    if [ -z "$matches" ]; then
+        echo "journal: no matches for '$pattern' in $JOURNAL_DIR" >&2
+        exit 1
+    fi
+    printf '%s\n' "$matches"
+}
+
+# Manual flag parsing (not getopts): getopts bundles unrecognized short
+# options character-by-character, so text like "-5 to go" would get
+# silently chewed up as option letters. Here, anything that isn't exactly
+# a known flag stops flag parsing and is treated as the start of the text.
+while [ "$#" -gt 0 ]; do
+    case "$1" in
+        -h|--help) show_help; exit 0 ;;
+        -s|--search)
+            shift
+            if [ "$#" -eq 0 ]; then
+                echo "journal: -s/--search requires a PATTERN argument" >&2
+                exit 1
+            fi
+            show_search "$1"
+            exit 0
+            ;;
+        --) shift; break ;;
+        -*)
+            echo "journal: unknown option '$1'" >&2
+            echo "Usage: journal [-h] [-s PATTERN] [--] [text...]" >&2
+            exit 1
+            ;;
+        *) break ;;
+    esac
+done
+
+# Join all remaining words into the entry text, so unquoted multi-word
+# input (e.g. "journal buy milk") isn't silently truncated to "buy".
+if [ "$#" -gt 0 ]; then
+    text="$*"
+fi
+
+target="$JOURNAL_DIR/journal-$(date +%Y-%m-%d).md"
+
+# Ensure any new content starts on a fresh line, never glued to existing text.
+ensure_trailing_newline() {
+    local f="$1"
+    if [ -s "$f" ]; then
+        last_char=$(tail -c 1 "$f" || true)
+        if [ -n "$last_char" ]; then
+            printf '\n' >> "$f"
+        fi
+    fi
+}
+
+if [ -z "$text" ]; then
+    # Editor mode: no text given, open today's file (creating it if needed).
+    touch "$target"
+
+    # Split on whitespace so an $EDITOR with arguments (e.g. "code --wait",
+    # "emacsclient -t") runs correctly instead of being treated as one
+    # literal (nonexistent) executable name.
+    read -ra editor_parts <<< "${EDITOR:-nano}"
+    editor_base=$(basename "${editor_parts[0]}")
+
+    case "$editor_base" in
+        vim|vi)
+            # Jump to end of file, enter insert mode at the end of the last line.
+            "${editor_parts[@]}" "+normal! GA" "$target"
+            ;;
+        nano)
+            # Position cursor at the end of the file.
+            "${editor_parts[@]}" "+9999999,9999999" "$target"
+            ;;
+        *)
+            "${editor_parts[@]}" "$target"
+            ;;
+    esac
+    exit 0
+fi
+
+ensure_trailing_newline "$target"
+printf '%s: %s\n' "$(date +%H:%M)" "$text" >> "$target"
+echo "Saved to $target"

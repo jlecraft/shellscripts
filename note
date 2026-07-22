@@ -1,0 +1,251 @@
+#!/bin/bash
+#
+# note - quick note-taking script
+#
+# Usage:
+#   note                  Open latest note (or create one) in $EDITOR
+#   note some text        Append text to latest note (or create one)
+#   note -n               Force a new note, open it in $EDITOR
+#   note -n some text     Force a new note, write text into it
+#   note -t some text     Add a timestamp heading, then the text
+#   note -t                Add a timestamp heading, then open in $EDITOR
+#   note -n -t text        Any combination of flags works, in any order
+#   note -- -text          Use -- to write text that itself starts with "-"
+#   note -l | --log        Print the contents of the latest note file
+#   note -l N | --log N    Print the contents of note-NNNNNN.md (e.g. -l 7)
+#   note -s PATTERN        Search all note files for lines matching PATTERN (case-insensitive)
+#   note -h | --help       Show this help
+#
+# All words after the recognized flags are joined with spaces and
+# saved as the note text, so quoting is optional (but still fine).
+#
+# Files are stored in ~/Documents as: note-NNNNNN.md, numbered with a
+# single ever-increasing counter (never reset). If no note files exist
+# yet, one is created automatically even without -n.
+
+set -euo pipefail
+
+NOTES_DIR="$HOME/Documents/raven"
+mkdir -p "$NOTES_DIR"
+
+new_file=false
+add_timestamp=false
+text=""
+
+show_help() {
+    cat <<EOF
+note - quick note-taking script
+
+Usage:
+  note                  Open latest note (or create one) in \$EDITOR
+  note some text        Append text to latest note (or create one)
+  note -n               Force a new note, open it in \$EDITOR
+  note -n some text     Force a new note, write text into it
+  note -t some text     Add a timestamp heading, then the text
+  note -t                Add a timestamp heading, then open in \$EDITOR
+  note -n -t text        Any combination of flags works, in any order
+  note -- -text          Use -- to write text that itself starts with "-"
+  note -l | --log        Print the contents of the latest note file
+  note -l N | --log N    Print the contents of note-NNNNNN.md (e.g. -l 7)
+  note -s PATTERN        Search all note files for lines matching PATTERN (case-insensitive)
+  note -h | --help       Show this help
+
+All words after the recognized flags are joined with spaces and saved
+as the note text, so quoting is optional (but still fine).
+
+Notes are stored as: NOTES_DIR/note-NNNNNN.md, numbered with a single
+ever-increasing counter (never reset). If no note files exist yet, one
+is created automatically even without -n.
+
+Current configuration:
+  Notes directory  : $NOTES_DIR
+  Editor (\$EDITOR) : ${EDITOR:-nano (default)}
+  Today's date     : $(date +%Y-%m-%d)
+EOF
+
+    local latest today_count
+    latest=$(find "$NOTES_DIR" -maxdepth 1 -type f -name 'note-*.md' 2>/dev/null | sort | tail -n 1)
+    today_count=$(find "$NOTES_DIR" -maxdepth 1 -type f -name 'note-*.md' -newermt "$(date +%Y-%m-%d)" 2>/dev/null | wc -l | tr -d ' ')
+
+    echo "  Latest note      : ${latest:-(none yet)}"
+    echo "  Notes today      : $today_count"
+}
+
+show_log() {
+    local num="${1:-}" target_file
+    if [ -n "$num" ]; then
+        target_file=$(printf "%s/note-%06d.md" "$NOTES_DIR" "$((10#$num))")
+        if [ ! -f "$target_file" ]; then
+            echo "note: no note file for number $num ($target_file)" >&2
+            exit 1
+        fi
+    else
+        target_file=$(find "$NOTES_DIR" -maxdepth 1 -type f -name 'note-*.md' 2>/dev/null | sort | tail -n 1)
+        if [ -z "$target_file" ]; then
+            echo "note: no notes found in $NOTES_DIR" >&2
+            exit 1
+        fi
+    fi
+    cat "$target_file"
+}
+
+show_search() {
+    local pattern="$1"
+    local -a files
+    mapfile -t files < <(find "$NOTES_DIR" -maxdepth 1 -type f -name 'note-*.md' -printf '%f\n' 2>/dev/null | sort)
+    if [ "${#files[@]}" -eq 0 ]; then
+        echo "note: no notes found in $NOTES_DIR" >&2
+        exit 1
+    fi
+
+    # Run from within NOTES_DIR so grep -H prints bare filenames instead
+    # of the full path.
+    local matches
+    matches=$(cd "$NOTES_DIR" && grep -Hni -- "$pattern" "${files[@]}" 2>/dev/null || true)
+    if [ -z "$matches" ]; then
+        echo "note: no matches for '$pattern' in $NOTES_DIR" >&2
+        exit 1
+    fi
+    printf '%s\n' "$matches"
+}
+
+# Manual flag parsing (not getopts): getopts bundles unrecognized short
+# options character-by-character, so text like "-5 to go" would get
+# silently chewed up as option letters (and a stray "t" would even
+# flip on -t by accident). Here, anything that isn't exactly a known
+# flag stops flag parsing and is treated as the start of the text.
+while [ "$#" -gt 0 ]; do
+    case "$1" in
+        -h|--help) show_help; exit 0 ;;
+        -l|--log)
+            if [ "$#" -gt 1 ] && [[ "$2" =~ ^[0-9]+$ ]]; then
+                show_log "$2"
+            else
+                show_log
+            fi
+            exit 0
+            ;;
+        -s|--search)
+            shift
+            if [ "$#" -eq 0 ]; then
+                echo "note: -s/--search requires a PATTERN argument" >&2
+                exit 1
+            fi
+            show_search "$1"
+            exit 0
+            ;;
+        -n) new_file=true; shift ;;
+        -t) add_timestamp=true; shift ;;
+        -nt|-tn) new_file=true; add_timestamp=true; shift ;;
+        --) shift; break ;;
+        -*)
+            echo "note: unknown option '$1'" >&2
+            echo "Usage: note [-n] [-t] [--] [text...]" >&2
+            exit 1
+            ;;
+        *) break ;;
+    esac
+done
+
+# Join all remaining words into the note text, so unquoted multi-word
+# input (e.g. "note buy milk") isn't silently truncated to "buy".
+if [ "$#" -gt 0 ]; then
+    text="$*"
+fi
+
+# Gather existing note files, sorted (lexicographic sort == chronological
+# order given the fixed-width note-NNNNNN.md naming scheme).
+existing=$(find "$NOTES_DIR" -maxdepth 1 -type f -name 'note-*.md' 2>/dev/null | sort || true)
+
+# If no notes exist at all yet, we must create one regardless of flags.
+if [ -z "$existing" ]; then
+    new_file=true
+fi
+
+determine_target() {
+    if [ "$new_file" = true ]; then
+        # Find the highest existing sequence number (across all notes,
+        # never reset), then use the next one.
+        max_num=0
+        if [ -n "$existing" ]; then
+            while IFS= read -r f; do
+                [ -z "$f" ] && continue
+                base=$(basename "$f")
+                if [[ "$base" =~ ^note-([0-9]{6})\.md$ ]]; then
+                    num=$((10#${BASH_REMATCH[1]}))
+                    if [ "$num" -gt "$max_num" ]; then
+                        max_num=$num
+                    fi
+                fi
+            done <<< "$existing"
+        fi
+        next_num=$((max_num + 1))
+        printf "%s/note-%06d.md" "$NOTES_DIR" "$next_num"
+    else
+        # Most recently created note, by filename (which sorts chronologically).
+        echo "$existing" | tail -n 1
+    fi
+}
+
+target=$(determine_target)
+
+if [ "$new_file" = true ]; then
+    touch "$target"
+fi
+
+# Ensure any new content starts on a fresh line, never glued to existing text.
+ensure_trailing_newline() {
+    local f="$1"
+    if [ -s "$f" ]; then
+        last_char=$(tail -c 1 "$f" || true)
+        if [ -n "$last_char" ]; then
+            printf '\n' >> "$f"
+        fi
+    fi
+}
+
+# Blank-line separator before each new entry, for readability. Skipped on
+# an empty (freshly created) file so notes don't start with a blank line.
+add_separator() {
+    local f="$1"
+    ensure_trailing_newline "$f"
+    if [ -s "$f" ]; then
+        printf '\n' >> "$f"
+    fi
+}
+
+if [ -n "$text" ]; then
+    # Quick-note mode: write directly to the file, no editor.
+    add_separator "$target"
+    if [ "$add_timestamp" = true ]; then
+        printf '###### %s\n' "$(date "+%Y-%m-%d %H:%M:%S")" >> "$target"
+    fi
+    printf '%s\n' "$text" >> "$target"
+    echo "Saved to $target"
+else
+    # Editor mode.
+    if [ "$add_timestamp" = true ]; then
+        add_separator "$target"
+        printf '###### %s\n' "$(date "+%Y-%m-%d %H:%M:%S")" >> "$target"
+    fi
+
+    # Split on whitespace so an $EDITOR with arguments (e.g. "code --wait",
+    # "emacsclient -t") runs correctly instead of being treated as one
+    # literal (nonexistent) executable name.
+    read -ra editor_parts <<< "${EDITOR:-nano}"
+    editor_base=$(basename "${editor_parts[0]}")
+
+    case "$editor_base" in
+        vim|vi)
+            # Jump to end of file, enter insert mode at the end of the last line.
+            "${editor_parts[@]}" "+normal! GA" "$target"
+            ;;
+        nano)
+            # Position cursor at the end of the file.
+            "${editor_parts[@]}" "+9999999,9999999" "$target"
+            ;;
+        *)
+            "${editor_parts[@]}" "$target"
+            ;;
+    esac
+fi

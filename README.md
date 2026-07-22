@@ -2,6 +2,61 @@
 
 A collection of small, dependency-free bash scripts.
 
+## Installation
+
+Copy or symlink whichever script(s) you want into a directory on your
+`$PATH` (e.g. `~/.local/bin`) and make sure it's executable:
+
+```
+ln -s "$(pwd)/note" ~/.local/bin/note
+```
+
+## note
+
+Quick numbered note-taking. Notes are stored as `note-NNNNNN.md` in
+`~/Documents/raven`, with an ever-increasing counter that never resets.
+
+```
+note                  Open latest note (or create one) in $EDITOR
+note some text        Append text to latest note (or create one)
+note -n               Force a new note, open it in $EDITOR
+note -n some text     Force a new note, write text into it
+note -t some text     Add a timestamp heading, then the text
+note -t               Add a timestamp heading, then open in $EDITOR
+note -n -t text       Any combination of flags works, in any order
+note -- -text         Use -- to write text that itself starts with "-"
+note -l | --log       Print the contents of the latest note file
+note -l N | --log N   Print the contents of note-NNNNNN.md (e.g. -l 7)
+note -s PATTERN       Search all note files for lines matching PATTERN (case-insensitive)
+note -h | --help      Show this help
+```
+
+## journal
+
+Daily journal entries, one file per day, stored as
+`journal-YYYY-MM-DD.md` in `~/Documents/raven/journal`.
+
+```
+journal                Open today's journal entry (or create one) in $EDITOR
+journal some text      Append "HH:MM: some text" to today's journal entry
+journal -- -text       Use -- to write text that itself starts with "-"
+journal -s PATTERN     Search all journal files for lines matching PATTERN (case-insensitive)
+journal -h | --help    Show this help
+```
+
+## dpass
+
+Diceware passphrase generator. Looks up dice-roll keys in a wordlist
+(`/home/crafty/Documents/dicepass.txt` by default — edit `WORDLIST` in the
+script to point at your own list) and prints the matching words joined
+by hyphens.
+
+```
+dpass <ARG1> <ARG2> ... <ARG-N>   Look up specific dice keys
+dpass -r [N=1]                    Generate N random dice-roll words
+dpass -R [N=1]                    Same as -r, plus print the numeric keys
+```
+
 ## rename_sanitize.sh
 
 Renames files in a directory so that `ls` and other shell commands never
